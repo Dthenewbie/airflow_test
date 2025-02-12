@@ -125,8 +125,8 @@ def PTT_scraper_pipeline():
         # 去除多餘空白行
         cleaned_text = re.sub(r'\n+', '\n', cleaned_text).strip()
         return cleaned_text
-    
-    def data_transformation():
+    @task
+    def data_transformation(result):
         df = pd.DataFrame(result)
         # 將字串轉換為日期格式，再格式化成目標格式
         df['Reported_Date'] = pd.to_datetime(df['Reported_Date']).dt.strftime('%Y-%m-%d')
