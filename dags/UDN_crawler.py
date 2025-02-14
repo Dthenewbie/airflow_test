@@ -1,6 +1,7 @@
 from airflow.decorators import dag, task
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -9,6 +10,7 @@ from selenium.webdriver.chrome.options import Options
 import time
 from tasks.insert_db import save_to_caseprocessing
 import uuid
+from utils.text_handler import clean_content
 from utils.request_check import request_with_retry
 from utils.selenium_setting import setup_driver
 
@@ -122,9 +124,17 @@ def UDN_news_scraper_pipeline():
             driver.quit()
 
         return all_results
-
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        # 將字串轉換為日期格式，再格式化成目標格式
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
+    
     # Define task dependencies
     scraped_data = scrape_main_page()
-    save_to_caseprocessing(scraped_data)
+    result_formated = data_transformation(scraped_data)
+    save_to_caseprocessing(result_formated)
 
 UDN_news_scraper_pipeline()

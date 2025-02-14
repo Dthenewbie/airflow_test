@@ -7,6 +7,7 @@ import time
 import uuid
 import re
 from tasks.insert_db import save_to_caseprocessing
+from utils.text_handler import clean_content
 from utils.request_check import request_with_retry
 
 # Default arguments for the DAG
@@ -92,7 +93,7 @@ def New_Taipei_Police_Department_scraper_pipeline():
     @task
     def data_transformation(result) -> dict:
         df = pd.DataFrame(result)
-        df["Content"] = df["Content"].apply(lambda x: re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9，。！？、；：「」％（）]', '', x))
+        df["Content"] = df["Content"].apply(clean_content)
         df['Reported_Date'] = df['Reported_Date'].apply(lambda x: str(int(x.split("-")[0])+1911) + "-" + x.split("-")[1] + "-" + x.split("-")[2])
         result_formated = df.to_dict(orient="records")
         return result_formated

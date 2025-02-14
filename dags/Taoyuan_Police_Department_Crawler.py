@@ -7,6 +7,7 @@ import time
 import uuid
 import re
 from tasks.insert_db import save_to_caseprocessing
+from utils.text_handler import clean_content
 from utils.request_check import request_with_retry
 
 # Default arguments for the DAG
@@ -90,10 +91,18 @@ def Taoyuan_Police_Department_scraper_pipeline():
                 break
 
         return all_data
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        # 將字串轉換為日期格式，再格式化成目標格式
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
     
     # Task dependencies
     result = page_iter()
-    save_to_caseprocessing(result)
+    result_formated = data_transformation(result)
+    save_to_caseprocessing(result_formated)
 
 # Instantiate the DAG
 Taoyuan_Police_Department_scraper_pipeline()

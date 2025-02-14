@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from tasks.insert_db import save_to_caseprocessing
 import uuid
+from utils.text_handler import clean_content
 from utils.selenium_setting import setup_driver
 
 # Default arguments for the DAG
@@ -143,8 +144,17 @@ def dashboard_scraper_pipeline():
                 break
 
         return data
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
+        
+    
     # Define task dependencies
     scraped_data = scrape_website()
-    save_to_caseprocessing(scraped_data)
+    result_formated = data_transformation(scraped_data)
+    save_to_caseprocessing(result_formated)
 
 dashboard_scraper_pipeline()

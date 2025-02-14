@@ -6,6 +6,7 @@ import json
 import time
 import uuid
 import re
+from utils.text_handler import clean_content
 from tasks.insert_db import save_to_caseprocessing
 from utils.request_check import request_with_retry
 
@@ -96,6 +97,7 @@ def Kaohsiung_Police_Department_scraper_pipeline():
     def data_transformation(result) -> dict:
         df = pd.DataFrame(result)
         df['Reported_Date'] = df['Reported_Date'].apply(convert_date)
+        df['Content'] = df['Content'].apply(clean_content)
         result_formated = df.to_dict(orient="records")
         return result_formated
 

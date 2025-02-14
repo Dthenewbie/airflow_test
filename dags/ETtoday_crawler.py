@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from bs4 import BeautifulSoup
-import requests
+import pandas as pd
 import time
 import random
 import re
 import uuid
+from utils.text_handler import clean_content
 from tasks.insert_db import save_to_caseprocessing
+from utils.request_check import request_with_retry
 
 # Default arguments for the DAG
 default_args = {
@@ -40,7 +42,7 @@ def ETtoday_news_scraper_pipeline():
                 url = f"{url_base}{page}"
                 print(f"Scraping page {page}: {url}")
                 try:
-                    response = requests.get(url)
+                    response = request_with_retry(url)
                     time.sleep(random.uniform(1, 2))
                     soup = BeautifulSoup(response.text, "html.parser")
                     page_data = scrape_page(soup)
@@ -66,7 +68,7 @@ def ETtoday_news_scraper_pipeline():
             for round in range(retries):
                 try:
                     time.sleep(1)
-                    response = requests.get(title["href"])
+                    response = request_with_retry(title["href"])
                     soup = BeautifulSoup(response.text, "html.parser")
                     content = soup.select("div.story p")
                     content_text = "".join([ele.text for ele in content[3:]])
@@ -93,9 +95,18 @@ def ETtoday_news_scraper_pipeline():
             data.append(item)
         return data
 
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
+
     # Task dependencies
     scraped_data = scrape_website()
-    save_to_caseprocessing(scraped_data)
+    result_formated = data_transformation(scraped_data)
+    save_to_caseprocessing(result_formated)
+
 
 # Instantiate the DAG
 ETtoday_news_scraper_pipeline()

@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from bs4 import BeautifulSoup
+import pandas as pd
 import time
 import random
 import uuid
 from tasks.insert_db import save_to_caseprocessing
+from utils.text_handler import clean_content
 from utils.request_check import request_with_retry
 
 
@@ -81,11 +83,20 @@ def PTS_news_scraper_pipeline():
             data.append(item)
             time.sleep(random.uniform(1, 2))
         return data
+    
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        # 將字串轉換為日期格式，再格式化成目標格式
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
 
 
     # Task dependencies
     scraped_data = scrape_website()
-    save_to_caseprocessing(scraped_data)
+    result_formated = data_transformation(scraped_data)
+    save_to_caseprocessing(result_formated)
 
 # Instantiate the DAG
 PTS_news_scraper_pipeline()

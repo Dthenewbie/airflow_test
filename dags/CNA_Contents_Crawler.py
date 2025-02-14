@@ -1,10 +1,12 @@
-from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import pandas as pd
 import time
 import random
 import uuid
 from tasks.insert_db import save_to_caseprocessing
+from utils.text_handler import clean_content
 from utils.request_check import request_with_retry
 
 # Default arguments for the DAG
@@ -74,9 +76,16 @@ def CNA_news_scraper_pipeline():
                 news.append(article)
 
         return news
+    @task
+    def data_transformation(result):
+        df = pd.DataFrame(result)
+        df['Content'] = df['Content'].apply(clean_content)
+        result_formated = df.to_dict(orient="records")
+        return result_formated
     # Task dependencies
     scraped_data = scrape_page()
-    save_to_caseprocessing(scraped_data)
+    result_formated = data_transformation(scraped_data)
+    save_to_caseprocessing(result_formated)
 
 # Instantiate the DAG
 CNA_news_scraper_pipeline()
